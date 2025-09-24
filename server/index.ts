@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { emailScheduler } from "./services/emailScheduler";
 
 const app = express();
 app.use(express.json());
@@ -61,11 +62,44 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
+  
+  const httpServer = server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
+    
+    // Initialize email scheduler after server is ready
+    try {
+      await emailScheduler.initialize();
+      log('Email scheduler initialized successfully');
+    } catch (error) {
+      console.error('Email scheduler initialization failed:', error);
+      // Don't crash the server if email scheduler fails
+    }
   });
+
+  // Graceful shutdown for Cloud Run
+  const gracefulShutdown = () => {
+    console.log('Received shutdown signal, closing server gracefully...');
+    
+    // Stop email scheduler first
+    emailScheduler.stop();
+    
+    // Close HTTP server
+    httpServer.close(() => {
+      console.log('Server closed successfully');
+      process.exit(0);
+    });
+    
+    // Force close after 10 seconds
+    setTimeout(() => {
+      console.error('Forcing server shutdown');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', gracefulShutdown);
+  process.on('SIGINT', gracefulShutdown);
 })();

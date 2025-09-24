@@ -4,10 +4,21 @@ import type { InsertEmailFollowUp, ContactSubmission } from '@shared/schema';
 
 export class EmailSchedulerService {
   private processingInterval: NodeJS.Timeout | null = null;
+  private isInitialized = false;
   
   constructor() {
-    // Process pending emails every 5 minutes
+    // Don't start processing immediately - wait for explicit initialization
+  }
+
+  // Initialize after server startup to avoid blocking
+  async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+    
+    console.log('Initializing email scheduler service...');
+    
+    // Start processing in background without awaiting to not block startup
     this.startProcessing();
+    this.isInitialized = true;
   }
 
   // Schedule email follow-up sequence for a new contact
@@ -137,8 +148,10 @@ export class EmailSchedulerService {
 
   // Start the email processing interval
   private startProcessing(): void {
-    // Process immediately on startup
-    this.processPendingEmails();
+    // Process after a short delay to not block startup
+    setTimeout(() => {
+      this.processPendingEmails();
+    }, 2000); // 2 second delay
     
     // Then process every 5 minutes
     this.processingInterval = setInterval(() => {
@@ -158,16 +171,7 @@ export class EmailSchedulerService {
   }
 }
 
-// Create singleton instance
+// Create singleton instance (but don't auto-start)
 export const emailScheduler = new EmailSchedulerService();
 
-// Gracefully stop the scheduler on process exit
-process.on('SIGINT', () => {
-  emailScheduler.stop();
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  emailScheduler.stop();
-  process.exit(0);
-});
+// Note: Graceful shutdown is now handled in server/index.ts

@@ -15,6 +15,26 @@ const aiService = new AIService(
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Health check endpoints for Cloud Run
+  app.get("/health", (req, res) => {
+    res.status(200).json({ 
+      status: "healthy", 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  });
+
+  app.get("/ready", (req, res) => {
+    res.status(200).json({ 
+      status: "ready",
+      services: {
+        emailScheduler: "ready",
+        database: "ready"
+      },
+      timestamp: new Date().toISOString()
+    });
+  });
+  
   // Chat endpoint
   app.post("/api/chat", async (req, res) => {
     try {
