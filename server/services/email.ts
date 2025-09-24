@@ -47,8 +47,13 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
       console.log(`Email sent successfully to ${params.to} via MailerSend`);
       return true;
     } else {
-      const errorData = await response.json();
-      console.error('MailerSend API error:', response.status, errorData);
+      try {
+        const errorData = await response.json();
+        console.error('MailerSend API error:', response.status, errorData);
+      } catch (jsonError) {
+        const errorText = await response.text();
+        console.error('MailerSend API error (non-JSON):', response.status, errorText);
+      }
       return false;
     }
   } catch (error) {
