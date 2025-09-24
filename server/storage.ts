@@ -6,9 +6,14 @@ import {
   type ContactSubmission,
   type InsertContactSubmission,
   type UnknownQuestion,
-  type InsertUnknownQuestion
+  type InsertUnknownQuestion,
+  users,
+  chatMessages,
+  contactSubmissions,
+  unknownQuestions
 } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -25,86 +30,70 @@ export interface IStorage {
   getUnknownQuestions(): Promise<UnknownQuestion[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private chatMessages: Map<string, ChatMessage>;
-  private contactSubmissions: Map<string, ContactSubmission>;
-  private unknownQuestions: Map<string, UnknownQuestion>;
-
-  constructor() {
-    this.users = new Map();
-    this.chatMessages = new Map();
-    this.contactSubmissions = new Map();
-    this.unknownQuestions = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
   async createChatMessage(insertMessage: InsertChatMessage): Promise<ChatMessage> {
-    const id = randomUUID();
-    const message: ChatMessage = {
-      ...insertMessage,
-      id,
-      timestamp: new Date(),
-    };
-    this.chatMessages.set(id, message);
+    const [message] = await db
+      .insert(chatMessages)
+      .values(insertMessage)
+      .returning();
     return message;
   }
 
   async getChatMessagesBySession(sessionId: string): Promise<ChatMessage[]> {
-    return Array.from(this.chatMessages.values())
-      .filter(msg => msg.sessionId === sessionId)
-      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    return await db
+      .select()
+      .from(chatMessages)
+      .where(eq(chatMessages.sessionId, sessionId))
+      .orderBy(chatMessages.timestamp);
   }
 
   async createContactSubmission(insertSubmission: InsertContactSubmission): Promise<ContactSubmission> {
-    const id = randomUUID();
-    const submission: ContactSubmission = {
-      ...insertSubmission,
-      id,
-      timestamp: new Date(),
-      notified: false,
-    };
-    this.contactSubmissions.set(id, submission);
+    const [submission] = await db
+      .insert(contactSubmissions)
+      .values(insertSubmission)
+      .returning();
     return submission;
   }
 
   async getContactSubmissions(): Promise<ContactSubmission[]> {
-    return Array.from(this.contactSubmissions.values())
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return await db
+      .select()
+      .from(contactSubmissions)
+      .orderBy(desc(contactSubmissions.timestamp));
   }
 
   async createUnknownQuestion(insertQuestion: InsertUnknownQuestion): Promise<UnknownQuestion> {
-    const id = randomUUID();
-    const question: UnknownQuestion = {
-      ...insertQuestion,
-      id,
-      timestamp: new Date(),
-      notified: false,
-    };
-    this.unknownQuestions.set(id, question);
+    const [question] = await db
+      .insert(unknownQuestions)
+      .values(insertQuestion)
+      .returning();
     return question;
   }
 
   async getUnknownQuestions(): Promise<UnknownQuestion[]> {
-    return Array.from(this.unknownQuestions.values())
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return await db
+      .select()
+      .from(unknownQuestions)
+      .orderBy(desc(unknownQuestions.timestamp));
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
