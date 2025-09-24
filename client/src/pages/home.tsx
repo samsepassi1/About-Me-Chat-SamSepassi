@@ -3,6 +3,7 @@ import WelcomeCard from "@/components/welcome-card";
 import ChatInterface from "@/components/chat-interface";
 import QuickActions from "@/components/quick-actions";
 import ContactModal from "@/components/contact-modal";
+import { Link } from "wouter";
 import { useState } from "react";
 
 export default function Home() {
@@ -22,6 +23,23 @@ export default function Home() {
         isOpen={isContactModalOpen}
         onClose={() => setIsContactModalOpen(false)}
       />
+
+      {/* Footer with Dashboard Link */}
+      <footer className="max-w-4xl mx-auto px-4 py-8 mt-16">
+        <div className="text-center text-sm text-muted-foreground">
+          <div className="flex items-center justify-center space-x-6">
+            <span>© 2025 Sam Sepassi</span>
+            <span>•</span>
+            <Link 
+              href="/dashboard" 
+              className="hover:text-foreground transition-colors"
+              data-testid="link-dashboard"
+            >
+              Analytics
+            </Link>
+          </div>
+        </div>
+      </footer>
 
       {/* Floating Contact Button for Mobile */}
       <div className="fixed bottom-6 right-6 md:hidden">

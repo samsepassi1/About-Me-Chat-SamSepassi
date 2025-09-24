@@ -118,6 +118,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analytics endpoints
+  app.get("/api/analytics/dashboard", async (req, res) => {
+    try {
+      const contacts = await storage.getContactSubmissions();
+      const unknownQuestions = await storage.getUnknownQuestions();
+      
+      // Get chat statistics
+      const totalMessages = await storage.getTotalChatMessages();
+      const uniqueSessions = await storage.getUniqueChatSessions();
+      
+      // Calculate growth metrics (last 7 days vs previous 7 days)
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+      
+      const recentContacts = contacts.filter(c => c.timestamp >= sevenDaysAgo);
+      const previousContacts = contacts.filter(c => c.timestamp >= fourteenDaysAgo && c.timestamp < sevenDaysAgo);
+      
+      res.json({
+        overview: {
+          totalContacts: contacts.length,
+          totalChatMessages: totalMessages,
+          uniqueChatSessions: uniqueSessions,
+          unknownQuestions: unknownQuestions.length
+        },
+        growth: {
+          contactsThisWeek: recentContacts.length,
+          contactsLastWeek: previousContacts.length,
+          contactGrowth: recentContacts.length - previousContacts.length
+        },
+        recentActivity: {
+          contacts: contacts.slice(0, 5),
+          unknownQuestions: unknownQuestions.slice(0, 5)
+        }
+      });
+    } catch (error) {
+      console.error("Analytics dashboard error:", error);
+      res.status(500).json({ error: "Failed to get analytics data" });
+    }
+  });
+
+  app.get("/api/analytics/contacts", async (req, res) => {
+    try {
+      const contacts = await storage.getContactSubmissions();
+      
+      // Group by day for the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const dailyContacts = new Map();
+      
+      // Initialize all days with 0
+      for (let i = 0; i < 30; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        dailyContacts.set(dateStr, 0);
+      }
+      
+      // Count actual contacts
+      contacts
+        .filter(c => c.timestamp >= thirtyDaysAgo)
+        .forEach(contact => {
+          const dateStr = contact.timestamp.toISOString().split('T')[0];
+          dailyContacts.set(dateStr, (dailyContacts.get(dateStr) || 0) + 1);
+        });
+      
+      // Convert to array and sort by date
+      const timeSeriesData = Array.from(dailyContacts.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+      
+      res.json({
+        totalContacts: contacts.length,
+        timeSeries: timeSeriesData,
+        recentContacts: contacts.slice(0, 10)
+      });
+    } catch (error) {
+      console.error("Contact analytics error:", error);
+      res.status(500).json({ error: "Failed to get contact analytics" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

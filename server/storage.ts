@@ -16,7 +16,7 @@ import {
   emailFollowUps
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, lte } from "drizzle-orm";
+import { eq, desc, and, lte, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -35,6 +35,10 @@ export interface IStorage {
   createEmailFollowUp(followUp: InsertEmailFollowUp): Promise<EmailFollowUp>;
   getPendingEmailFollowUps(): Promise<EmailFollowUp[]>;
   markEmailFollowUpSent(id: string): Promise<void>;
+  
+  // Analytics methods
+  getTotalChatMessages(): Promise<number>;
+  getUniqueChatSessions(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -132,6 +136,21 @@ export class DatabaseStorage implements IStorage {
         sentAt: new Date() 
       })
       .where(eq(emailFollowUps.id, id));
+  }
+  
+  // Analytics methods
+  async getTotalChatMessages(): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(chatMessages);
+    return result[0]?.count || 0;
+  }
+
+  async getUniqueChatSessions(): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(distinct ${chatMessages.sessionId})` })
+      .from(chatMessages);
+    return result[0]?.count || 0;
   }
 }
 
