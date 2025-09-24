@@ -1,5 +1,4 @@
 import Header from "@/components/header";
-import WelcomeCard from "@/components/welcome-card";
 import ChatInterface from "@/components/chat-interface";
 import QuickActions from "@/components/quick-actions";
 import ContactModal from "@/components/contact-modal";
@@ -14,7 +13,6 @@ export default function Home() {
       <Header onContactClick={() => setIsContactModalOpen(true)} />
       
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <WelcomeCard />
         <ChatInterface />
         <QuickActions onContactClick={() => setIsContactModalOpen(true)} />
       </main>
