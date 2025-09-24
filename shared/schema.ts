@@ -66,6 +66,11 @@ export const insertUnknownQuestionSchema = createInsertSchema(unknownQuestions).
   notified: true,
 });
 
+export const insertEmailFollowUpSchema = createInsertSchema(emailFollowUps).omit({
+  id: true,
+  timestamp: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -77,3 +82,6 @@ export type InsertContactSubmission = z.infer<typeof insertContactSubmissionSche
 
 export type UnknownQuestion = typeof unknownQuestions.$inferSelect;
 export type InsertUnknownQuestion = z.infer<typeof insertUnknownQuestionSchema>;
+
+export type EmailFollowUp = typeof emailFollowUps.$inferSelect;
+export type InsertEmailFollowUp = z.infer<typeof insertEmailFollowUpSchema>;

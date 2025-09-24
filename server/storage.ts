@@ -7,13 +7,16 @@ import {
   type InsertContactSubmission,
   type UnknownQuestion,
   type InsertUnknownQuestion,
+  type EmailFollowUp,
+  type InsertEmailFollowUp,
   users,
   chatMessages,
   contactSubmissions,
-  unknownQuestions
+  unknownQuestions,
+  emailFollowUps
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, lte } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -28,6 +31,10 @@ export interface IStorage {
   
   createUnknownQuestion(question: InsertUnknownQuestion): Promise<UnknownQuestion>;
   getUnknownQuestions(): Promise<UnknownQuestion[]>;
+  
+  createEmailFollowUp(followUp: InsertEmailFollowUp): Promise<EmailFollowUp>;
+  getPendingEmailFollowUps(): Promise<EmailFollowUp[]>;
+  markEmailFollowUpSent(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -93,6 +100,38 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(unknownQuestions)
       .orderBy(desc(unknownQuestions.timestamp));
+  }
+
+  async createEmailFollowUp(insertFollowUp: InsertEmailFollowUp): Promise<EmailFollowUp> {
+    const [followUp] = await db
+      .insert(emailFollowUps)
+      .values(insertFollowUp)
+      .returning();
+    return followUp;
+  }
+
+  async getPendingEmailFollowUps(): Promise<EmailFollowUp[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(emailFollowUps)
+      .where(
+        and(
+          eq(emailFollowUps.emailSent, false),
+          lte(emailFollowUps.scheduledFor, now)
+        )
+      )
+      .orderBy(emailFollowUps.scheduledFor);
+  }
+
+  async markEmailFollowUpSent(id: string): Promise<void> {
+    await db
+      .update(emailFollowUps)
+      .set({ 
+        emailSent: true, 
+        sentAt: new Date() 
+      })
+      .where(eq(emailFollowUps.id, id));
   }
 }
 

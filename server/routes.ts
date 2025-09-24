@@ -5,6 +5,7 @@ import { insertChatMessageSchema, insertContactSubmissionSchema, insertUnknownQu
 import { AIService } from "./services/openai";
 import { ResumeParser } from "./services/resume-parser";
 import { EmailNotificationService } from "./services/email";
+import { emailScheduler } from "./services/emailScheduler";
 
 // Initialize AI service with Sam's data
 const aiService = new AIService(
@@ -46,17 +47,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const args = JSON.parse(toolCall.function.arguments);
           
           if (toolCall.function.name === "record_user_details") {
-            await storage.createContactSubmission({
+            const contactSubmission = await storage.createContactSubmission({
               email: args.email,
               name: args.name || "Name not provided",
               notes: args.notes || "Provided during chat interaction"
             });
             
+            // Send immediate notification to Sam
             await EmailNotificationService.notifyContactSubmission(
               args.name || 'Name not provided',
               args.email,
               args.notes
             );
+            
+            // Schedule automated follow-up sequence
+            await emailScheduler.scheduleFollowUpSequence(contactSubmission);
           } else if (toolCall.function.name === "record_unknown_question") {
             await storage.createUnknownQuestion({
               question: args.question
@@ -84,11 +89,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const submission = await storage.createContactSubmission(validatedData);
       
+      // Send immediate notification to Sam
       await EmailNotificationService.notifyContactSubmission(
         submission.name || 'Name not provided',
         submission.email,
         submission.message
       );
+      
+      // Schedule automated follow-up sequence
+      await emailScheduler.scheduleFollowUpSequence(submission);
       
       res.json({ success: true, id: submission.id });
     } catch (error) {
