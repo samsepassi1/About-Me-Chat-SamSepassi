@@ -34,7 +34,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
 
 // Email service for Sam Sepassi's portfolio notifications
 export class EmailNotificationService {
-  private static FROM_EMAIL = 'noreply@samsepassi.com'; // This should be a verified SendGrid email
+  private static FROM_EMAIL = 'samsepassi2@gmail.com'; // Verified SendGrid email
   private static SAM_EMAIL = 'samsepassi2@gmail.com';
   private static SAM_DISPLAY_NAME = 'Sam Sepassi';
 
