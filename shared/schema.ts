@@ -34,6 +34,16 @@ export const unknownQuestions = pgTable("unknown_questions", {
   notified: boolean("notified").default(false),
 });
 
+export const emailFollowUps = pgTable("email_follow_ups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contactId: varchar("contact_id").references(() => contactSubmissions.id).notNull(),
+  emailType: varchar("email_type").notNull(), // 'welcome', 'follow_up_3_days', 'follow_up_7_days'
+  emailSent: boolean("email_sent").default(false),
+  sentAt: timestamp("sent_at"),
+  scheduledFor: timestamp("scheduled_for").notNull(),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
