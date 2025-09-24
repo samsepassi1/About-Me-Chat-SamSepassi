@@ -4,18 +4,13 @@ import { storage } from "./storage";
 import { insertChatMessageSchema, insertContactSubmissionSchema, insertUnknownQuestionSchema } from "@shared/schema";
 import { AIService } from "./services/openai";
 import { ResumeParser } from "./services/resume-parser";
+import { EmailNotificationService } from "./services/email";
 
 // Initialize AI service with Sam's data
 const aiService = new AIService(
   ResumeParser.getSamSummary(),
   ResumeParser.getSamLinkedInProfile()
 );
-
-// Notification function (can be replaced with actual notification service)
-async function sendNotification(message: string) {
-  console.log(`NOTIFICATION: ${message}`);
-  // TODO: Implement actual notification service (Pushover, email, etc.)
-}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -57,13 +52,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               notes: args.notes || "Provided during chat interaction"
             });
             
-            await sendNotification(`New contact from chat: ${args.name || 'Unknown'} - ${args.email}`);
+            await EmailNotificationService.notifyContactSubmission(
+              args.name || 'Name not provided',
+              args.email,
+              args.notes
+            );
           } else if (toolCall.function.name === "record_unknown_question") {
             await storage.createUnknownQuestion({
               question: args.question
             });
             
-            await sendNotification(`Unknown question recorded: ${args.question}`);
+            await EmailNotificationService.notifyUnknownQuestion(args.question);
           }
         }
       }
@@ -85,8 +84,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const submission = await storage.createContactSubmission(validatedData);
       
-      await sendNotification(
-        `New contact submission: ${submission.name || 'Unknown'} - ${submission.email}${submission.message ? ` - Message: ${submission.message}` : ''}`
+      await EmailNotificationService.notifyContactSubmission(
+        submission.name || 'Name not provided',
+        submission.email,
+        submission.message
       );
       
       res.json({ success: true, id: submission.id });
