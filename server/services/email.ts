@@ -1,5 +1,5 @@
-// MailerSend Email Service - Replacing SendGrid for better Gmail compatibility
-// Free tier: 3,000 emails/month with no daily limits
+// Brevo Email Service - Replacing MailerSend for better free tier
+// Free tier: 300 emails/day with no domain verification required
 
 interface EmailParams {
   to: string;
@@ -11,23 +11,22 @@ interface EmailParams {
 }
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
-  // Check for MailerSend API key
-  const apiKey = process.env.MAILERSEND_API_KEY;
+  // Check for Brevo API key
+  const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
-    console.error('MAILERSEND_API_KEY environment variable must be set');
+    console.error('BREVO_API_KEY environment variable must be set');
     return false;
   }
 
   try {
-    const response = await fetch('https://api.mailersend.com/v1/email', {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
+        'api-key': apiKey,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: {
+        sender: {
           email: params.from,
           name: params.fromName || 'Sam Sepassi Portfolio'
         },
@@ -38,33 +37,34 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
           }
         ],
         subject: params.subject,
-        text: params.text || '',
-        html: params.html || params.text || ''
+        htmlContent: params.html || `<p>${params.text || ''}</p>`,
+        textContent: params.text || ''
       })
     });
 
     if (response.ok) {
-      console.log(`Email sent successfully to ${params.to} via MailerSend`);
+      const result = await response.json();
+      console.log(`Email sent successfully to ${params.to} via Brevo (messageId: ${result.messageId})`);
       return true;
     } else {
       try {
         const errorData = await response.json();
-        console.error('MailerSend API error:', response.status, errorData);
+        console.error('Brevo API error:', response.status, errorData);
       } catch (jsonError) {
         const errorText = await response.text();
-        console.error('MailerSend API error (non-JSON):', response.status, errorText);
+        console.error('Brevo API error (non-JSON):', response.status, errorText);
       }
       return false;
     }
   } catch (error) {
-    console.error('MailerSend email error:', error);
+    console.error('Brevo email error:', error);
     return false;
   }
 }
 
 // Email service for Sam Sepassi's portfolio notifications
 export class EmailNotificationService {
-  private static FROM_EMAIL = 'samsepassi2@gmail.com'; // Works with MailerSend
+  private static FROM_EMAIL = 'samsepassi2@gmail.com'; // Works with Brevo immediately
   private static SAM_EMAIL = 'samsepassi2@gmail.com';
   private static SAM_DISPLAY_NAME = 'Sam Sepassi';
 
