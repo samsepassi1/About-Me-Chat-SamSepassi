@@ -1,40 +1,65 @@
-import { MailService } from '@sendgrid/mail';
-
-if (!process.env.SENDGRID_API_KEY) {
-  throw new Error("SENDGRID_API_KEY environment variable must be set");
-}
-
-const mailService = new MailService();
-mailService.setApiKey(process.env.SENDGRID_API_KEY);
+// MailerSend Email Service - Replacing SendGrid for better Gmail compatibility
+// Free tier: 3,000 emails/month with no daily limits
 
 interface EmailParams {
   to: string;
   from: string;
+  fromName?: string;
   subject: string;
   text?: string;
   html?: string;
 }
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
+  // Check for MailerSend API key
+  const apiKey = process.env.MAILERSEND_API_KEY;
+  if (!apiKey) {
+    console.error('MAILERSEND_API_KEY environment variable must be set');
+    return false;
+  }
+
   try {
-    await mailService.send({
-      to: params.to,
-      from: params.from,
-      subject: params.subject,
-      text: params.text || '',
-      html: params.html || '',
+    const response = await fetch('https://api.mailersend.com/v1/email', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify({
+        from: {
+          email: params.from,
+          name: params.fromName || 'Sam Sepassi Portfolio'
+        },
+        to: [
+          {
+            email: params.to,
+            name: params.to.includes('@') ? params.to.split('@')[0] : 'Recipient'
+          }
+        ],
+        subject: params.subject,
+        text: params.text || '',
+        html: params.html || params.text || ''
+      })
     });
-    console.log(`Email sent successfully to ${params.to}`);
-    return true;
+
+    if (response.ok) {
+      console.log(`Email sent successfully to ${params.to} via MailerSend`);
+      return true;
+    } else {
+      const errorData = await response.json();
+      console.error('MailerSend API error:', response.status, errorData);
+      return false;
+    }
   } catch (error) {
-    console.error('SendGrid email error:', error);
+    console.error('MailerSend email error:', error);
     return false;
   }
 }
 
 // Email service for Sam Sepassi's portfolio notifications
 export class EmailNotificationService {
-  private static FROM_EMAIL = 'samsepassi2@gmail.com'; // Verified SendGrid email
+  private static FROM_EMAIL = 'samsepassi2@gmail.com'; // Works with MailerSend
   private static SAM_EMAIL = 'samsepassi2@gmail.com';
   private static SAM_DISPLAY_NAME = 'Sam Sepassi';
 
@@ -153,7 +178,8 @@ LinkedIn: https://linkedin.com/in/samsepassi1
 
     return await sendEmail({
       to,
-      from: `${this.SAM_DISPLAY_NAME} <${this.FROM_EMAIL}>`,
+      from: this.FROM_EMAIL,
+      fromName: this.SAM_DISPLAY_NAME,
       subject,
       text,
       html
@@ -225,7 +251,8 @@ AI Interaction Engineer at Tanium
 
     return await sendEmail({
       to,
-      from: `${this.SAM_DISPLAY_NAME} <${this.FROM_EMAIL}>`,
+      from: this.FROM_EMAIL,
+      fromName: this.SAM_DISPLAY_NAME,
       subject,
       text,
       html
